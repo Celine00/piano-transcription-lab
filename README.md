@@ -33,6 +33,14 @@ For runtime score export:
 python -m pip install -e ".[runtime]"
 ```
 
+For the built-in piano transcription backend:
+
+```bash
+python -m pip install -e ".[piano,runtime]"
+```
+
+`piano-transcription-inference` also needs PyTorch and `ffmpeg`. Install PyTorch for your machine first if the package does not bring in a compatible version.
+
 ## Test
 
 ```bash
@@ -66,6 +74,35 @@ The placeholders are:
 - `{audio}`: normalized WAV path.
 - `{midi}`: raw MIDI output path.
 
+## Run With Built-In Piano Backend
+
+This uses `piano_transcription_inference` directly.
+
+```bash
+piano-transcribe transcribe samples/input/song.mp3 \
+  --model piano-transcription-inference \
+  --device cpu \
+  --out output/song \
+  --work-dir work/song
+```
+
+To use a local checkpoint:
+
+```bash
+piano-transcribe transcribe samples/input/song.mp3 \
+  --model piano-transcription-inference \
+  --checkpoint-path path/to/checkpoint.pth \
+  --out output/song
+```
+
+The backend follows the package API:
+
+```python
+from piano_transcription_inference import PianoTranscription, sample_rate
+```
+
+The audio is loaded at the package `sample_rate`, then `PianoTranscription(...).transcribe(audio, midi_path)` writes the MIDI file.
+
 ## Output
 
 For `--out output/song`, expected artifacts are:
@@ -83,4 +120,3 @@ When using `--existing-midi`, the pipeline skips raw audio transcription and sta
 
 - [MVP technical design](doc/MVP_TECH_DESIGN.md)
 - [Implementation plan](docs/superpowers/plans/2026-05-12-mvp-cli.md)
-

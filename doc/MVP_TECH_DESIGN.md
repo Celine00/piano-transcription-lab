@@ -102,6 +102,8 @@ MVP recommendation:
 
 - Start with `piano_transcription_inference` because the product is piano-focused.
 - Keep the code boundary clean so we can swap in `basic-pitch` later.
+- Use `--model piano-transcription-inference` for the built-in adapter.
+- Keep `--transcriber-command` as a fallback for ad-hoc model experiments.
 - Save raw model output before cleanup.
 
 Artifact:

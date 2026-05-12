@@ -22,6 +22,9 @@ class PipelineConfig:
     channels: int = 2
     ffmpeg: str = "ffmpeg"
     musescore: str = "mscore"
+    model: str = "piano-transcription-inference"
+    device: str = "cpu"
+    checkpoint_path: Path | None = None
     transcriber_command: str | None = None
 
 

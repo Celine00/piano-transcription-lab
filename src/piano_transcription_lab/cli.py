@@ -25,6 +25,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--transcriber-command",
         help="Command template for audio-to-MIDI. Use {audio} and {midi} placeholders.",
     )
+    transcribe.add_argument(
+        "--model",
+        choices=["piano-transcription-inference", "command"],
+        default="piano-transcription-inference",
+        help="Audio-to-MIDI backend to use.",
+    )
+    transcribe.add_argument("--device", default="cpu", help="Device for model inference, usually cpu or cuda.")
+    transcribe.add_argument("--checkpoint-path", type=Path, help="Optional model checkpoint path.")
     transcribe.add_argument("--min-duration-ms", type=float, default=60)
     transcribe.add_argument("--min-velocity", type=int, default=10)
     transcribe.add_argument("--quantize-ms", type=float, default=125)
@@ -50,6 +58,9 @@ def config_from_args(args: argparse.Namespace) -> tuple[Path, PipelineConfig]:
         channels=args.channels,
         ffmpeg=args.ffmpeg,
         musescore=args.musescore,
+        model=args.model,
+        device=args.device,
+        checkpoint_path=args.checkpoint_path,
         transcriber_command=args.transcriber_command,
     )
 
@@ -68,4 +79,3 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error(f"Unknown command: {args.command}")
     return 2
-

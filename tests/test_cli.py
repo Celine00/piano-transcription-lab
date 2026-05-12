@@ -22,6 +22,12 @@ def test_cli_builds_pipeline_config_from_transcribe_args():
             "12",
             "--quantize-ms",
             "125",
+            "--model",
+            "piano-transcription-inference",
+            "--device",
+            "cpu",
+            "--checkpoint-path",
+            "checkpoint.pth",
         ]
     )
 
@@ -34,3 +40,6 @@ def test_cli_builds_pipeline_config_from_transcribe_args():
     assert config.cleanup.min_duration_seconds == 0.08
     assert config.cleanup.min_velocity == 12
     assert config.cleanup.quantize_seconds == 0.125
+    assert config.model == "piano-transcription-inference"
+    assert config.device == "cpu"
+    assert config.checkpoint_path == Path("checkpoint.pth")
