@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import importlib
+import os
 import shutil
 
 
@@ -49,6 +50,7 @@ class PianoTranscriptionInferenceTranscriber:
 
     @staticmethod
     def _load_package():
+        ensure_matplotlib_cache()
         try:
             return importlib.import_module("piano_transcription_inference")
         except ImportError as exc:
@@ -71,3 +73,12 @@ class PianoTranscriptionInferenceTranscriber:
                 "version. Install the piano runtime extras."
             ) from exc
         return librosa.load(str(audio_path), sr=sample_rate, mono=True)
+
+
+def ensure_matplotlib_cache(cache_dir: Path | None = None) -> None:
+    if os.environ.get("MPLCONFIGDIR"):
+        return
+
+    resolved_cache_dir = cache_dir or Path.cwd() / ".cache" / "matplotlib"
+    resolved_cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["MPLCONFIGDIR"] = str(resolved_cache_dir)

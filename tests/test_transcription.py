@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys
 import types
 
@@ -6,7 +7,27 @@ import pytest
 
 import piano_transcription_lab.transcription as transcription_module
 from piano_transcription_lab.pipeline import PipelineConfig
-from piano_transcription_lab.transcription import transcribe_audio
+from piano_transcription_lab.transcription import ensure_matplotlib_cache, transcribe_audio
+
+
+def test_ensure_matplotlib_cache_sets_repo_local_cache_when_unset(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MPLCONFIGDIR", raising=False)
+
+    ensure_matplotlib_cache()
+
+    assert os.environ["MPLCONFIGDIR"] == str(tmp_path / ".cache" / "matplotlib")
+    assert (tmp_path / ".cache" / "matplotlib").is_dir()
+
+
+def test_ensure_matplotlib_cache_keeps_existing_env(tmp_path, monkeypatch):
+    custom_cache = tmp_path / "custom-mpl"
+    monkeypatch.setenv("MPLCONFIGDIR", str(custom_cache))
+
+    ensure_matplotlib_cache()
+
+    assert os.environ["MPLCONFIGDIR"] == str(custom_cache)
+    assert not custom_cache.exists()
 
 
 def test_transcribe_audio_uses_piano_transcription_inference_backend(tmp_path, monkeypatch):

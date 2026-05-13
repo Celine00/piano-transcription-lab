@@ -57,12 +57,7 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e ".[dev,runtime,piano]"
 ```
 
-To avoid Matplotlib cache warnings from the transcription package:
-
-```bash
-mkdir -p .cache/matplotlib
-export MPLCONFIGDIR="$PWD/.cache/matplotlib"
-```
+The CLI automatically sets `MPLCONFIGDIR` to `.cache/matplotlib` when it is not already configured. This avoids Matplotlib trying to write to `~/.matplotlib`.
 
 `ffmpeg` is available at `/opt/homebrew/bin/ffmpeg`.
 
