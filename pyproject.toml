@@ -11,8 +11,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-runtime = ["music21>=9", "mido>=1.3"]
-piano = ["piano-transcription-inference>=0.0.6", "librosa>=0.10"]
+runtime = ["music21>=8,<9", "mido>=1.3"]
+piano = ["piano-transcription-inference>=0.0.6", "librosa>=0.10", "torch>=2"]
 
 [project.scripts]
 piano-transcribe = "piano_transcription_lab.cli:main"

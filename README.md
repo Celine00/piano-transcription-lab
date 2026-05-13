@@ -23,6 +23,15 @@ External runtime tools are still required for a real audio-to-score run:
 
 ## Setup
 
+This repo uses a local `pyenv` virtualenv:
+
+```bash
+pyenv virtualenv 3.9.22 piano-transcription-lab
+pyenv local piano-transcription-lab
+```
+
+Python 3.9 is intentional. `piano-transcription-inference` is an older package, and `music21>=9` requires Python 3.10+, so the repo pins `music21` to 8.x for this environment.
+
 ```bash
 python -m pip install -e ".[dev]"
 ```
@@ -40,6 +49,30 @@ python -m pip install -e ".[piano,runtime]"
 ```
 
 `piano-transcription-inference` also needs PyTorch and `ffmpeg`. Install PyTorch for your machine first if the package does not bring in a compatible version.
+
+On this machine, the full local install is:
+
+```bash
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e ".[dev,runtime,piano]"
+```
+
+To avoid Matplotlib cache warnings from the transcription package:
+
+```bash
+mkdir -p .cache/matplotlib
+export MPLCONFIGDIR="$PWD/.cache/matplotlib"
+```
+
+`ffmpeg` is available at `/opt/homebrew/bin/ffmpeg`.
+
+MuseScore is still required for PDF rendering. If it is not installed:
+
+```bash
+brew install --cask musescore
+```
+
+After installing MuseScore, pass the CLI path with `--musescore` if `mscore` is not on `PATH`.
 
 ## Test
 

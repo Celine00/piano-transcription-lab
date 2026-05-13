@@ -4,6 +4,7 @@ import types
 
 import pytest
 
+import piano_transcription_lab.transcription as transcription_module
 from piano_transcription_lab.pipeline import PipelineConfig
 from piano_transcription_lab.transcription import transcribe_audio
 
@@ -56,7 +57,14 @@ def test_transcribe_audio_uses_piano_transcription_inference_backend(tmp_path, m
 
 
 def test_transcribe_audio_reports_missing_piano_transcription_dependency(tmp_path, monkeypatch):
-    monkeypatch.delitem(sys.modules, "piano_transcription_inference", raising=False)
+    real_import_module = transcription_module.importlib.import_module
+
+    def fake_import_module(name):
+        if name == "piano_transcription_inference":
+            raise ImportError(name)
+        return real_import_module(name)
+
+    monkeypatch.setattr(transcription_module.importlib, "import_module", fake_import_module)
 
     source = tmp_path / "song.wav"
     source.write_bytes(b"wav")
