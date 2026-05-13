@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import subprocess
 
 from piano_transcription_lab.audio import normalize_audio
 from piano_transcription_lab.midi_cleanup import CleanupConfig, clean_midi_file
@@ -83,7 +84,10 @@ class PipelineRunner:
 
         self.clean_midi(midi_source, clean_midi, config.cleanup)
         self.export_musicxml(clean_midi, musicxml, config)
-        self.render_pdf(musicxml, pdf, config)
+        try:
+            self.render_pdf(musicxml, pdf, config)
+        except subprocess.CalledProcessError:
+            self.render_pdf(clean_midi, pdf, config)
 
         return PipelineResult(
             raw_midi=raw_midi,

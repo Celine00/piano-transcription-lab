@@ -4,6 +4,15 @@ from pathlib import Path
 import importlib
 import os
 import shutil
+import urllib.request
+
+
+DEFAULT_CHECKPOINT_FILENAME = "note_F1=0.9677_pedal_F1=0.9186.pth"
+DEFAULT_CHECKPOINT_MIN_BYTES = 160_000_000
+DEFAULT_CHECKPOINT_URL = (
+    "https://zenodo.org/record/4034264/files/"
+    "CRNN_note_F1%3D0.9677_pedal_F1%3D0.9186.pth?download=1"
+)
 
 
 def transcribe_audio(source: Path, target: Path, config) -> None:
@@ -44,13 +53,30 @@ class PianoTranscriptionInferenceTranscriber:
         sample_rate = package.sample_rate
         loaded_audio = self._load_audio(package, audio_path, sample_rate)
         audio = loaded_audio[0] if isinstance(loaded_audio, tuple) else loaded_audio
-        checkpoint = str(self.checkpoint_path) if self.checkpoint_path else None
+        checkpoint = str(self._resolve_checkpoint_path())
         transcriber = package.PianoTranscription(device=self.device, checkpoint_path=checkpoint)
         transcriber.transcribe(audio, str(midi_path))
 
+    def _resolve_checkpoint_path(self) -> Path:
+        checkpoint_path = self.checkpoint_path or (
+            Path.cwd() / ".cache" / "piano_transcription_inference" / DEFAULT_CHECKPOINT_FILENAME
+        )
+        self._ensure_checkpoint(checkpoint_path)
+        return checkpoint_path
+
+    def _ensure_checkpoint(self, checkpoint_path: Path) -> None:
+        if checkpoint_path.exists() and checkpoint_path.stat().st_size >= DEFAULT_CHECKPOINT_MIN_BYTES:
+            return
+
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".part")
+        print(f"Downloading piano transcription checkpoint to {checkpoint_path}")
+        urllib.request.urlretrieve(DEFAULT_CHECKPOINT_URL, temp_path)
+        temp_path.replace(checkpoint_path)
+
     @staticmethod
     def _load_package():
-        ensure_matplotlib_cache()
+        ensure_runtime_caches()
         try:
             return importlib.import_module("piano_transcription_inference")
         except ImportError as exc:
@@ -63,8 +89,17 @@ class PianoTranscriptionInferenceTranscriber:
     @staticmethod
     def _load_audio(package, audio_path: Path, sample_rate: int):
         if hasattr(package, "load_audio"):
-            return package.load_audio(str(audio_path), sr=sample_rate, mono=True)
+            try:
+                return package.load_audio(str(audio_path), sr=sample_rate, mono=True)
+            except AttributeError as exc:
+                if "librosa.core" not in str(exc):
+                    raise
 
+        return PianoTranscriptionInferenceTranscriber._load_audio_with_librosa(audio_path, sample_rate)
+
+    @staticmethod
+    def _load_audio_with_librosa(audio_path: Path, sample_rate: int):
+        ensure_runtime_caches()
         try:
             librosa = importlib.import_module("librosa")
         except ImportError as exc:
@@ -75,10 +110,14 @@ class PianoTranscriptionInferenceTranscriber:
         return librosa.load(str(audio_path), sr=sample_rate, mono=True)
 
 
-def ensure_matplotlib_cache(cache_dir: Path | None = None) -> None:
-    if os.environ.get("MPLCONFIGDIR"):
-        return
+def ensure_runtime_caches(cache_root: Path | None = None) -> None:
+    resolved_cache_root = cache_root or Path.cwd() / ".cache"
+    _ensure_env_cache_dir("MPLCONFIGDIR", resolved_cache_root / "matplotlib")
+    _ensure_env_cache_dir("NUMBA_CACHE_DIR", resolved_cache_root / "numba")
 
-    resolved_cache_dir = cache_dir or Path.cwd() / ".cache" / "matplotlib"
-    resolved_cache_dir.mkdir(parents=True, exist_ok=True)
-    os.environ["MPLCONFIGDIR"] = str(resolved_cache_dir)
+
+def _ensure_env_cache_dir(env_name: str, cache_dir: Path) -> None:
+    if os.environ.get(env_name):
+        return
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ[env_name] = str(cache_dir)
