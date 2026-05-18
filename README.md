@@ -81,9 +81,7 @@ This validates the cleanup/export/rendering half of the pipeline.
 
 ```bash
 piano-transcribe transcribe samples/input/song.mp3 \
-  --existing-midi samples/expected/song.mid \
-  --out output/song \
-  --work-dir work/song
+  --existing-midi samples/expected/song.mid
 ```
 
 ## Run With A Transcriber Command
@@ -92,9 +90,7 @@ Pass any audio-to-MIDI command that accepts an audio input path and a MIDI outpu
 
 ```bash
 piano-transcribe transcribe samples/input/song.mp3 \
-  --transcriber-command "your-transcriber --audio {audio} --midi {midi}" \
-  --out output/song \
-  --work-dir work/song
+  --transcriber-command "your-transcriber --audio {audio} --midi {midi}"
 ```
 
 The placeholders are:
@@ -109,9 +105,7 @@ This uses `piano_transcription_inference` directly.
 ```bash
 piano-transcribe transcribe samples/input/song.mp3 \
   --model piano-transcription-inference \
-  --device cpu \
-  --out output/song \
-  --work-dir work/song
+  --device cpu
 ```
 
 To use a local checkpoint:
@@ -119,8 +113,7 @@ To use a local checkpoint:
 ```bash
 piano-transcribe transcribe samples/input/song.mp3 \
   --model piano-transcription-inference \
-  --checkpoint-path path/to/checkpoint.pth \
-  --out output/song
+  --checkpoint-path path/to/checkpoint.pth
 ```
 
 The backend follows the package API:
@@ -133,13 +126,29 @@ The audio is loaded at the package `sample_rate`, then `PianoTranscription(...).
 
 ## Output
 
-For `--out output/song`, expected artifacts are:
+By default, artifacts are grouped by input song name. For `samples/input/song.mp3`,
+expected artifacts are:
 
 ```text
-output/song.raw.mid
-output/song.clean.mid
-output/song.musicxml
-output/song.pdf
+output/song/score.raw.mid
+output/song/score.clean.mid
+output/song/score.hands.mid
+output/song/score.musicxml
+output/song/score.pdf
+output/song/score.review.json
+```
+
+Repeated runs for the same input overwrite the same files. Pass `--out` and
+`--work-dir` to use a custom output prefix or working directory.
+
+The CLI also prints the review score, decision, and issue codes after each run.
+
+For piano hand splitting, the default export uses adaptive splitting between C4
+and C5 when a fixed C4 split would leave the left hand too sparse. To force a
+fixed split, pass a MIDI note number:
+
+```bash
+piano-transcribe transcribe samples/input/song.mp3 --hand-split-pitch 72
 ```
 
 When using `--existing-midi`, the pipeline skips raw audio transcription and starts from the provided MIDI.
