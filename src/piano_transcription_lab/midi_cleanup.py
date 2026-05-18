@@ -25,6 +25,7 @@ class CleanupConfig:
     max_end_seconds: float | None = None
     reduction_mode: str = "full"
     max_notes_per_onset: int = 4
+    auto_key: bool = False
     extra: dict = field(default_factory=dict)
 
 
@@ -53,7 +54,8 @@ def cleanup_notes(notes: list[NoteEvent], config: CleanupConfig) -> list[NoteEve
 
     quantized = [_quantize_note(note, config.quantize_seconds) for note in filtered]
     quantized = [note for note in quantized if note.end > note.start]
-    reduced = _reduce_note_density(quantized, config)
+    keyed = _transpose_to_simple_key(quantized, config) if config.auto_key else quantized
+    reduced = _reduce_note_density(keyed, config)
 
     return _merge_close_repeats(sorted(reduced, key=lambda note: (note.start, note.pitch)), config)
 
@@ -189,6 +191,79 @@ def _reduce_note_density(notes: list[NoteEvent], config: CleanupConfig) -> list[
     if config.reduction_mode == "melody":
         return _make_monophonic(reduced)
     return reduced
+
+
+MAJOR_SCALE_INTERVALS = {0, 2, 4, 5, 7, 9, 11}
+SIMPLE_MAJOR_KEYS = {
+    0: 0,   # C
+    7: 1,   # G
+    2: 2,   # D
+    5: 1,   # F
+    9: 3,   # A
+    10: 2,  # Bb
+}
+
+
+def _transpose_to_simple_key(notes: list[NoteEvent], config: CleanupConfig) -> list[NoteEvent]:
+    if not notes:
+        return notes
+
+    source_key = _estimate_major_key(notes)
+    shift = _choose_simple_key_shift(source_key, notes, config)
+    if shift == 0:
+        return notes
+
+    return [
+        NoteEvent(
+            pitch=note.pitch + shift,
+            start=note.start,
+            end=note.end,
+            velocity=note.velocity,
+        )
+        for note in notes
+    ]
+
+
+def _estimate_major_key(notes: list[NoteEvent]) -> int:
+    pitch_class_weights: dict[int, float] = defaultdict(float)
+    for note in notes:
+        pitch_class_weights[note.pitch % 12] += max(0.001, note.end - note.start)
+
+    return max(
+        range(12),
+        key=lambda key: (
+            sum(
+                weight
+                for pitch_class, weight in pitch_class_weights.items()
+                if (pitch_class - key) % 12 in MAJOR_SCALE_INTERVALS
+            ),
+            pitch_class_weights.get(key, 0.0),
+            -key,
+        ),
+    )
+
+
+def _choose_simple_key_shift(
+    source_key: int,
+    notes: list[NoteEvent],
+    config: CleanupConfig,
+) -> int:
+    candidates = []
+    for target_key, accidental_count in SIMPLE_MAJOR_KEYS.items():
+        shift = _nearest_shift(source_key, target_key)
+        shifted_pitches = [note.pitch + shift for note in notes]
+        if min(shifted_pitches) < config.min_pitch or max(shifted_pitches) > config.max_pitch:
+            continue
+        candidates.append((accidental_count, abs(shift), shift))
+
+    if not candidates:
+        return 0
+    return min(candidates)[2]
+
+
+def _nearest_shift(source_key: int, target_key: int) -> int:
+    upward = (target_key - source_key) % 12
+    return upward - 12 if upward > 6 else upward
 
 
 def _make_monophonic(notes: list[NoteEvent]) -> list[NoteEvent]:

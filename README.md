@@ -143,6 +143,27 @@ Repeated runs for the same input overwrite the same files. Pass `--out` and
 
 The CLI also prints the review score, decision, and issue codes after each run.
 
+## Easier Piano Output
+
+For beginner-friendly output, use the difficulty preset:
+
+```bash
+piano-transcribe transcribe samples/input/song.mp3 --difficulty beginner
+```
+
+This keeps fewer simultaneous notes and automatically transposes the cleaned MIDI
+to a nearby beginner-friendly key when possible. Use `--difficulty easy` for a
+less aggressive reduction, or `--difficulty full` to keep the default full output.
+
+You can also enable automatic key selection independently:
+
+```bash
+piano-transcribe transcribe samples/input/song.mp3 \
+  --reduction-mode piano-reduction \
+  --max-notes-per-onset 2 \
+  --auto-key
+```
+
 For piano hand splitting, the default export uses adaptive splitting between C4
 and C5 when a fixed C4 split would leave the left hand too sparse. To force a
 fixed split, pass a MIDI note number:

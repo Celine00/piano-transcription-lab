@@ -39,6 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
     transcribe.add_argument("--quantize-ms", type=float, default=125)
     transcribe.add_argument("--merge-gap-ms", type=float, default=25)
     transcribe.add_argument(
+        "--difficulty",
+        choices=["full", "easy", "beginner"],
+        default="full",
+        help="Apply score simplification presets.",
+    )
+    transcribe.add_argument(
         "--reduction-mode",
         choices=["full", "melody", "piano-reduction"],
         default="full",
@@ -49,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=4,
         help="Maximum notes to keep per onset in piano-reduction mode.",
+    )
+    transcribe.add_argument(
+        "--auto-key",
+        action="store_true",
+        help="Transpose the cleaned MIDI to a beginner-friendly nearby key.",
     )
     transcribe.add_argument(
         "--hand-split-pitch",
@@ -62,13 +73,26 @@ def build_parser() -> argparse.ArgumentParser:
 def config_from_args(args: argparse.Namespace) -> tuple[Path, PipelineConfig]:
     output_prefix = args.out or Path("output") / args.input_audio.stem / "score"
     work_dir = args.work_dir or Path("work") / args.input_audio.stem
+    reduction_mode = args.reduction_mode
+    max_notes_per_onset = args.max_notes_per_onset
+    auto_key = args.auto_key
+    if args.difficulty == "beginner":
+        reduction_mode = "piano-reduction"
+        max_notes_per_onset = 2
+        auto_key = True
+    elif args.difficulty == "easy":
+        reduction_mode = "piano-reduction"
+        max_notes_per_onset = 3
+        auto_key = True
+
     cleanup = CleanupConfig(
         min_duration_seconds=args.min_duration_ms / 1000,
         min_velocity=args.min_velocity,
         quantize_seconds=args.quantize_ms / 1000 if args.quantize_ms else None,
         merge_gap_seconds=args.merge_gap_ms / 1000,
-        reduction_mode=args.reduction_mode,
-        max_notes_per_onset=args.max_notes_per_onset,
+        reduction_mode=reduction_mode,
+        max_notes_per_onset=max_notes_per_onset,
+        auto_key=auto_key,
     )
     return args.input_audio, PipelineConfig(
         output_prefix=output_prefix,

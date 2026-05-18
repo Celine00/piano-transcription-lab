@@ -124,3 +124,14 @@ def test_cleanup_notes_piano_reduction_limits_notes_per_onset_by_velocity():
         NoteEvent(pitch=52, start=0.0, end=0.375, velocity=90),
         NoteEvent(pitch=55, start=0.0, end=0.375, velocity=70),
     ]
+
+
+def test_cleanup_notes_auto_key_transposes_complex_major_key_to_simple_neighbor():
+    notes = [
+        NoteEvent(pitch=pitch, start=index * 0.25, end=index * 0.25 + 0.2, velocity=80)
+        for index, pitch in enumerate([61, 63, 65, 66, 68, 70, 72, 73])
+    ]
+
+    cleaned = cleanup_notes(notes, CleanupConfig(auto_key=True))
+
+    assert [note.pitch for note in cleaned] == [60, 62, 64, 65, 67, 69, 71, 72]
