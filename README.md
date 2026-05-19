@@ -152,8 +152,12 @@ piano-transcribe transcribe samples/input/song.mp3 --difficulty beginner
 ```
 
 This keeps fewer simultaneous notes and automatically transposes the cleaned MIDI
-to a nearby beginner-friendly key when possible. Use `--difficulty easy` for a
-less aggressive reduction, or `--difficulty full` to keep the default full output.
+to a nearby beginner-friendly key when possible. Beginner mode also rewrites the
+cleaned notes into a simpler arrangement before score export: the right hand is
+reduced toward a single melody line, and the left hand becomes a sparse regular
+bass pattern so MuseScore has less complex MIDI to notate. Use `--difficulty easy`
+for a less aggressive reduction, or `--difficulty full` to keep the default full
+output.
 
 You can also enable automatic key selection independently:
 

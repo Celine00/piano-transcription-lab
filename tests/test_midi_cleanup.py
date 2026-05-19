@@ -135,3 +135,43 @@ def test_cleanup_notes_auto_key_transposes_complex_major_key_to_simple_neighbor(
     cleaned = cleanup_notes(notes, CleanupConfig(auto_key=True))
 
     assert [note.pitch for note in cleaned] == [60, 62, 64, 65, 67, 69, 71, 72]
+
+
+def test_cleanup_notes_beginner_notation_keeps_melody_and_regular_left_hand():
+    notes = [
+        NoteEvent(pitch=48, start=0.0, end=0.25, velocity=72),
+        NoteEvent(pitch=55, start=0.0, end=0.25, velocity=68),
+        NoteEvent(pitch=60, start=0.0, end=0.25, velocity=70),
+        NoteEvent(pitch=72, start=0.0, end=0.25, velocity=82),
+        NoteEvent(pitch=74, start=0.125, end=0.375, velocity=80),
+        NoteEvent(pitch=76, start=0.25, end=0.5, velocity=78),
+        NoteEvent(pitch=77, start=0.375, end=0.625, velocity=76),
+        NoteEvent(pitch=79, start=0.5, end=0.75, velocity=74),
+        NoteEvent(pitch=81, start=0.625, end=0.875, velocity=72),
+        NoteEvent(pitch=83, start=0.75, end=1.0, velocity=70),
+        NoteEvent(pitch=84, start=0.875, end=1.125, velocity=68),
+    ]
+
+    cleaned = cleanup_notes(
+        notes,
+        CleanupConfig(
+            quantize_seconds=0.125,
+            notation_mode="beginner",
+            hand_split_pitch=60,
+            measure_seconds=1.0,
+            max_right_notes_per_measure=4,
+            max_left_notes_per_measure=4,
+            simple_duration_seconds=0.25,
+        ),
+    )
+
+    assert cleaned == [
+        NoteEvent(pitch=48, start=0.0, end=0.25, velocity=72),
+        NoteEvent(pitch=72, start=0.0, end=0.25, velocity=82),
+        NoteEvent(pitch=48, start=0.25, end=0.5, velocity=72),
+        NoteEvent(pitch=76, start=0.25, end=0.5, velocity=78),
+        NoteEvent(pitch=48, start=0.5, end=0.75, velocity=72),
+        NoteEvent(pitch=79, start=0.5, end=0.75, velocity=74),
+        NoteEvent(pitch=48, start=0.75, end=1.0, velocity=72),
+        NoteEvent(pitch=83, start=0.75, end=1.0, velocity=70),
+    ]

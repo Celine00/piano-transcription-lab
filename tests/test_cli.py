@@ -79,6 +79,10 @@ def test_cli_beginner_difficulty_enables_simple_key_and_reduces_note_density():
     assert config.cleanup.auto_key is True
     assert config.cleanup.reduction_mode == "piano-reduction"
     assert config.cleanup.max_notes_per_onset == 2
+    assert config.cleanup.notation_mode == "beginner"
+    assert config.cleanup.quantize_seconds == 0.25
+    assert config.cleanup.min_duration_seconds == 0.12
+    assert config.cleanup.merge_gap_seconds == 0.08
 
 
 def test_cli_prints_review_and_render_source(monkeypatch, capsys, tmp_path):

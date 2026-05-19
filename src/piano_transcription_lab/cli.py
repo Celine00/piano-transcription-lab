@@ -76,23 +76,36 @@ def config_from_args(args: argparse.Namespace) -> tuple[Path, PipelineConfig]:
     reduction_mode = args.reduction_mode
     max_notes_per_onset = args.max_notes_per_onset
     auto_key = args.auto_key
+    notation_mode = "full"
+    quantize_seconds = args.quantize_ms / 1000 if args.quantize_ms else None
+    min_duration_seconds = args.min_duration_ms / 1000
+    merge_gap_seconds = args.merge_gap_ms / 1000
     if args.difficulty == "beginner":
         reduction_mode = "piano-reduction"
         max_notes_per_onset = 2
         auto_key = True
+        notation_mode = "beginner"
+        quantize_seconds = 0.25
+        min_duration_seconds = 0.12
+        merge_gap_seconds = 0.08
     elif args.difficulty == "easy":
         reduction_mode = "piano-reduction"
         max_notes_per_onset = 3
         auto_key = True
+        notation_mode = "beginner"
+        quantize_seconds = 0.125
+        min_duration_seconds = max(min_duration_seconds, 0.08)
+        merge_gap_seconds = max(merge_gap_seconds, 0.05)
 
     cleanup = CleanupConfig(
-        min_duration_seconds=args.min_duration_ms / 1000,
+        min_duration_seconds=min_duration_seconds,
         min_velocity=args.min_velocity,
-        quantize_seconds=args.quantize_ms / 1000 if args.quantize_ms else None,
-        merge_gap_seconds=args.merge_gap_ms / 1000,
+        quantize_seconds=quantize_seconds,
+        merge_gap_seconds=merge_gap_seconds,
         reduction_mode=reduction_mode,
         max_notes_per_onset=max_notes_per_onset,
         auto_key=auto_key,
+        notation_mode=notation_mode,
     )
     return args.input_audio, PipelineConfig(
         output_prefix=output_prefix,
