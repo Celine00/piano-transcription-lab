@@ -25,6 +25,13 @@ class CleanupConfig:
     max_end_seconds: float | None = None
     reduction_mode: str = "full"
     max_notes_per_onset: int = 4
+    auto_key: bool = False
+    notation_mode: str = "full"
+    hand_split_pitch: int = 60
+    measure_seconds: float = 2.0
+    simple_duration_seconds: float = 0.25
+    max_right_notes_per_measure: int = 8
+    max_left_notes_per_measure: int = 8
     extra: dict = field(default_factory=dict)
 
 
@@ -53,9 +60,88 @@ def cleanup_notes(notes: list[NoteEvent], config: CleanupConfig) -> list[NoteEve
 
     quantized = [_quantize_note(note, config.quantize_seconds) for note in filtered]
     quantized = [note for note in quantized if note.end > note.start]
-    reduced = _reduce_note_density(quantized, config)
+    keyed = _transpose_to_simple_key(quantized, config) if config.auto_key else quantized
+    arranged = _arrange_beginner_notation(keyed, config) if config.notation_mode == "beginner" else keyed
+    reduced = _reduce_note_density(arranged, config)
 
     return _merge_close_repeats(sorted(reduced, key=lambda note: (note.start, note.pitch)), config)
+
+
+def _arrange_beginner_notation(notes: list[NoteEvent], config: CleanupConfig) -> list[NoteEvent]:
+    if not notes:
+        return notes
+
+    by_measure: dict[int, list[NoteEvent]] = defaultdict(list)
+    for note in notes:
+        by_measure[int(note.start // config.measure_seconds)].append(note)
+
+    arranged: list[NoteEvent] = []
+    for measure_index in sorted(by_measure):
+        measure_start = measure_index * config.measure_seconds
+        measure_notes = by_measure[measure_index]
+        right_notes = [note for note in measure_notes if note.pitch >= config.hand_split_pitch]
+        left_notes = [note for note in measure_notes if note.pitch < config.hand_split_pitch]
+        arranged.extend(_select_beginner_melody(right_notes, measure_start, config))
+        arranged.extend(_build_beginner_left_hand(left_notes, measure_start, config))
+
+    return sorted(arranged, key=lambda note: (note.start, note.pitch))
+
+
+def _select_beginner_melody(
+    notes: list[NoteEvent],
+    measure_start: float,
+    config: CleanupConfig,
+) -> list[NoteEvent]:
+    if not notes:
+        return []
+
+    by_slot: dict[int, list[NoteEvent]] = defaultdict(list)
+    for note in notes:
+        slot = int(round((note.start - measure_start) / config.simple_duration_seconds))
+        by_slot[slot].append(note)
+
+    selected: list[NoteEvent] = []
+    for slot in sorted(by_slot)[: config.max_right_notes_per_measure]:
+        start = round(measure_start + slot * config.simple_duration_seconds, 6)
+        note = max(
+            by_slot[slot],
+            key=lambda item: (
+                -abs(item.start - start),
+                item.pitch,
+                item.velocity,
+                item.end - item.start,
+            ),
+        )
+        selected.append(
+            NoteEvent(
+                pitch=note.pitch,
+                start=start,
+                end=round(start + config.simple_duration_seconds, 6),
+                velocity=note.velocity,
+            )
+        )
+    return selected
+
+
+def _build_beginner_left_hand(
+    notes: list[NoteEvent],
+    measure_start: float,
+    config: CleanupConfig,
+) -> list[NoteEvent]:
+    if not notes:
+        return []
+
+    bass = min(notes, key=lambda note: (note.pitch, -note.velocity))
+    count = max(1, config.max_left_notes_per_measure)
+    return [
+        NoteEvent(
+            pitch=bass.pitch,
+            start=round(measure_start + index * config.simple_duration_seconds, 6),
+            end=round(measure_start + (index + 1) * config.simple_duration_seconds, 6),
+            velocity=bass.velocity,
+        )
+        for index in range(count)
+    ]
 
 
 def clean_midi_file(source: Path, target: Path, config: CleanupConfig) -> None:
@@ -189,6 +275,79 @@ def _reduce_note_density(notes: list[NoteEvent], config: CleanupConfig) -> list[
     if config.reduction_mode == "melody":
         return _make_monophonic(reduced)
     return reduced
+
+
+MAJOR_SCALE_INTERVALS = {0, 2, 4, 5, 7, 9, 11}
+SIMPLE_MAJOR_KEYS = {
+    0: 0,   # C
+    7: 1,   # G
+    2: 2,   # D
+    5: 1,   # F
+    9: 3,   # A
+    10: 2,  # Bb
+}
+
+
+def _transpose_to_simple_key(notes: list[NoteEvent], config: CleanupConfig) -> list[NoteEvent]:
+    if not notes:
+        return notes
+
+    source_key = _estimate_major_key(notes)
+    shift = _choose_simple_key_shift(source_key, notes, config)
+    if shift == 0:
+        return notes
+
+    return [
+        NoteEvent(
+            pitch=note.pitch + shift,
+            start=note.start,
+            end=note.end,
+            velocity=note.velocity,
+        )
+        for note in notes
+    ]
+
+
+def _estimate_major_key(notes: list[NoteEvent]) -> int:
+    pitch_class_weights: dict[int, float] = defaultdict(float)
+    for note in notes:
+        pitch_class_weights[note.pitch % 12] += max(0.001, note.end - note.start)
+
+    return max(
+        range(12),
+        key=lambda key: (
+            sum(
+                weight
+                for pitch_class, weight in pitch_class_weights.items()
+                if (pitch_class - key) % 12 in MAJOR_SCALE_INTERVALS
+            ),
+            pitch_class_weights.get(key, 0.0),
+            -key,
+        ),
+    )
+
+
+def _choose_simple_key_shift(
+    source_key: int,
+    notes: list[NoteEvent],
+    config: CleanupConfig,
+) -> int:
+    candidates = []
+    for target_key, accidental_count in SIMPLE_MAJOR_KEYS.items():
+        shift = _nearest_shift(source_key, target_key)
+        shifted_pitches = [note.pitch + shift for note in notes]
+        if min(shifted_pitches) < config.min_pitch or max(shifted_pitches) > config.max_pitch:
+            continue
+        candidates.append((accidental_count, abs(shift), shift))
+
+    if not candidates:
+        return 0
+    return min(candidates)[2]
+
+
+def _nearest_shift(source_key: int, target_key: int) -> int:
+    upward = (target_key - source_key) % 12
+    return upward - 12 if upward > 6 else upward
 
 
 def _make_monophonic(notes: list[NoteEvent]) -> list[NoteEvent]:

@@ -27,6 +27,7 @@ def test_cli_builds_pipeline_config_from_transcribe_args():
             "piano-reduction",
             "--max-notes-per-onset",
             "3",
+            "--auto-key",
             "--hand-split-pitch",
             "72",
             "--model",
@@ -49,6 +50,7 @@ def test_cli_builds_pipeline_config_from_transcribe_args():
     assert config.cleanup.quantize_seconds == 0.125
     assert config.cleanup.reduction_mode == "piano-reduction"
     assert config.cleanup.max_notes_per_onset == 3
+    assert config.cleanup.auto_key is True
     assert config.hand_split_pitch == 72
     assert config.model == "piano-transcription-inference"
     assert config.device == "cpu"
@@ -65,6 +67,22 @@ def test_cli_defaults_output_and_work_dirs_to_song_name_folder():
     assert input_path == Path("samples/input/万物生灵片头曲.MP3")
     assert config.output_prefix == Path("output/万物生灵片头曲/score")
     assert config.work_dir == Path("work/万物生灵片头曲")
+
+
+def test_cli_beginner_difficulty_enables_simple_key_and_reduces_note_density():
+    parser = build_parser()
+
+    args = parser.parse_args(["transcribe", "samples/input/song.mp3", "--difficulty", "beginner"])
+
+    _input_path, config = config_from_args(args)
+
+    assert config.cleanup.auto_key is True
+    assert config.cleanup.reduction_mode == "piano-reduction"
+    assert config.cleanup.max_notes_per_onset == 2
+    assert config.cleanup.notation_mode == "beginner"
+    assert config.cleanup.quantize_seconds == 0.25
+    assert config.cleanup.min_duration_seconds == 0.12
+    assert config.cleanup.merge_gap_seconds == 0.08
 
 
 def test_cli_prints_review_and_render_source(monkeypatch, capsys, tmp_path):
